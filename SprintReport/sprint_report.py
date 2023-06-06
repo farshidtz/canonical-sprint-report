@@ -1,10 +1,12 @@
 import argparse
 import re
+import json
 
 from jira import JIRA, JIRAError
 from SprintReport.jira_api import jira_api
 
 jira_server = ""
+
 
 def get_bug_id(summary):
     "Extract the bug id from a jira title which would include LP#"
@@ -34,7 +36,7 @@ def find_issue_in_jira_sprint(jira_api, project, sprint):
         start_index = issue_index * issue_batch
         request = "project = {} " \
             "AND sprint = \"{}\" " \
-            "AND status = Done ORDER BY type".format(project, sprint)
+            "ORDER BY type".format(project, sprint)
         issues = jira_api.search_issues(request, startAt=start_index)
 
         if not issues:
@@ -46,10 +48,11 @@ def find_issue_in_jira_sprint(jira_api, project, sprint):
         for issue in issues:
             summary = issue.fields.summary
             issue_type = issue.fields.issuetype.name
-            found_issues[issue.key]= {
-                "key":issue.key,
-                "type":issue_type,
-                "summary":summary}
+            found_issues[issue.key] = {
+                "key": issue.key,
+                "status": issue.fields.status,
+                "type": issue_type,
+                "summary": summary}
 
     return found_issues
 
@@ -64,7 +67,7 @@ def key_to_md(key):
 def insert_bug_link(text):
     markdown_link = "[{}]({})"
     bugid = get_bug_id(text)
-    bug= "LP#" + bugid
+    bug = "LP#" + bugid
     link = "https://pad.lv/" + bugid
 
     return re.sub(bug, markdown_link.format(bug, link), text)
@@ -72,12 +75,18 @@ def insert_bug_link(text):
 
 def print_jira_issue(issue):
     summary = issue["summary"]
+    status = issue["status"]
     key = key_to_md(issue["key"])
+    # TODO: Icon mapping
+    # :white_check_mark: -- Done
+    # :x: -- Rejected
+    # :warning: -- In Progress
+    # To Do ? Backlog?
     if "LP#" in summary:
         summary = insert_bug_link(summary)
         print(" - {}".format(summary))
     else:
-        print(" - {} : {}".format(key, summary))
+        print(" - {} {} : {}".format(status, key, summary))
 
 
 def print_jira_report(issues):
@@ -98,8 +107,7 @@ def main(args=None):
     global jira_server
     global sprint
     parser = argparse.ArgumentParser(
-        description=
-            "A script to return a a Markdown report of a Jira Sprint"
+        description="A script to return a a Markdown report of a Jira Sprint"
     )
 
     parser.add_argument("project", type=str, help="key of the Jira project")
@@ -120,7 +128,7 @@ def main(args=None):
     # Create a set of all Jira issues completed in a given sprint
     issues = find_issue_in_jira_sprint(jira, opts.project, sprint)
     print("Found {} issue{} in JIRA".format(
-        len(issues),"s" if len(issues)> 1 else "")
+        len(issues), "s" if len(issues) > 1 else "")
     )
 
     print_jira_report(issues)
