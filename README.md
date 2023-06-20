@@ -17,3 +17,9 @@ Example:
 ```
 $> sprint-report FR "2023 Pulse #1"
 ```
+
+# Build and install
+```
+sudo python setup.py build
+sudo python setup.py install
+```

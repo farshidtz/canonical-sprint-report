@@ -77,16 +77,22 @@ def print_jira_issue(issue):
     summary = issue["summary"]
     status = issue["status"]
     key = key_to_md(issue["key"])
-    # TODO: Icon mapping
-    # :white_check_mark: -- Done
-    # :x: -- Rejected
-    # :warning: -- In Progress
-    # To Do ? Backlog?
-    if "LP#" in summary:
-        summary = insert_bug_link(summary)
-        print(" - {}".format(summary))
-    else:
-        print(" - {} {} : {}".format(status, key, summary))
+    
+    icon = None
+    reason = None
+    match str(status):
+        case "Done":
+            icon = ":white_check_mark:"
+        case "Rejected":
+            icon = ":negative_squared_cross_mark:"
+        case _: # "In Progress", "In Review", "Untriaged", "Triaged"
+            icon = ":warning:"
+            reason = status
+
+
+    print(" - {} {} : {}".format(icon, key, summary))
+    if reason:
+        print("   - {}".format(reason))
 
 
 def print_jira_report(issues):
