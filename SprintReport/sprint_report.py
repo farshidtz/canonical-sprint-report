@@ -5,6 +5,8 @@ import json
 from jira import JIRA, JIRAError
 from SprintReport.jira_api import jira_api
 
+from pprint import pprint
+
 jira_server = ""
 
 
@@ -36,7 +38,7 @@ def find_issue_in_jira_sprint(jira_api, project, sprint):
         start_index = issue_index * issue_batch
         request = "project = {} " \
             "AND sprint = \"{}\" " \
-            "ORDER BY type".format(project, sprint)
+            "ORDER BY parent ASC".format(project, sprint)
         issues = jira_api.search_issues(request, startAt=start_index)
 
         if not issues:
@@ -46,13 +48,21 @@ def find_issue_in_jira_sprint(jira_api, project, sprint):
 
         # For each issue in JIRA with LP# in the title
         for issue in issues:
+            # pprint(vars(issue))
+            # break
             summary = issue.fields.summary
             issue_type = issue.fields.issuetype.name
             found_issues[issue.key] = {
                 "key": issue.key,
                 "status": issue.fields.status,
                 "type": issue_type,
-                "summary": summary}
+                "summary": summary,
+                "labels": issue.fields.labels}
+
+            if hasattr(issue.fields, 'parent'):
+                # print(vars(issue.fields.parent))
+                found_issues[issue.key]["parent-key"] = issue.fields.parent.key
+                found_issues[issue.key]["parent-summary"] = issue.fields.parent.fields.summary
 
     return found_issues
 
@@ -64,6 +74,12 @@ def key_to_md(key):
     return markdown_link.format(key, jira_server + "/browse/" + key)
 
 
+def summary_to_md(key, summary):
+    global jira_server
+    markdown_link = "[{}]({})"
+
+    return markdown_link.format(summary, jira_server + "/browse/" + key)
+
 def insert_bug_link(text):
     markdown_link = "[{}]({})"
     bugid = get_bug_id(text)
@@ -74,9 +90,8 @@ def insert_bug_link(text):
 
 
 def print_jira_issue(issue):
-    summary = issue["summary"]
     status = issue["status"]
-    key = key_to_md(issue["key"])
+    issue_md = summary_to_md(issue["key"], issue["summary"])
     
     icon = None
     reason = None
@@ -89,8 +104,13 @@ def print_jira_issue(issue):
             icon = ":warning:"
             reason = status
 
+    if issue["type"] == "Bug":
+        icon += ' :beetle:'
 
-    print(" - {} {} : {}".format(icon, key, summary))
+    if 'Carry-over' in issue["labels"]:
+        icon += ' :arrow_right_hook:'
+
+    print(" - {} {}".format(icon, issue_md))
     if reason:
         print("   - {}".format(reason))
 
@@ -100,12 +120,17 @@ def print_jira_report(issues):
         return
 
     global sprint
-    category = ""
     print("# {} report".format(sprint))
+
+    parent = ""
     for issue in issues:
-        if issues[issue]["type"] != category:
-            category = issues[issue]["type"]
-            print("\n## {}".format(category))
+        if issues[issue]["parent-key"] != parent:
+            parent = issues[issue]["parent-key"]
+
+            # Print parent details
+            print("\n### {}".format(summary_to_md(
+                parent, issues[issue]["parent-summary"])))
+
         print_jira_issue(issues[issue])
 
 
