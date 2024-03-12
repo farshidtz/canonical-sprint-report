@@ -124,7 +124,14 @@ def print_jira_report(issues):
 
     parent = ""
     for issue in issues:
-        if issues[issue]["parent-key"] != parent:
+        # Orphan issues are expected at the end of the list
+        if "parent-key" not in issues[issue]:
+            # print("Orphan {}".format(issues[issue]['key']))
+            if parent != None:
+                parent = None
+                print("\n### Others")
+
+        elif issues[issue]["parent-key"] != parent:
             parent = issues[issue]["parent-key"]
 
             # Print parent details
