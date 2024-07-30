@@ -57,7 +57,8 @@ def find_issue_in_jira_sprint(jira_api, project, sprint):
                 "status": issue.fields.status,
                 "type": issue_type,
                 "summary": summary,
-                "labels": issue.fields.labels}
+                "labels": issue.fields.labels,
+                "totalSprints": len(issue.fields.customfield_10020)}
 
             if hasattr(issue.fields, 'parent'):
                 # print(vars(issue.fields.parent))
@@ -107,7 +108,7 @@ def print_jira_issue(issue):
     if issue["type"] == "Bug":
         icon += ' :beetle:'
 
-    if 'Carry-over' in issue["labels"]:
+    if issue["totalSprints"] > 1:
         icon += ' :arrow_right_hook:'
 
     print(" - {} {}".format(icon, issue_md))
